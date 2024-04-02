@@ -11,13 +11,13 @@ import (
 func TestUpgrade(t *testing.T) {
 	t.Parallel()
 
-	cfg := OnomyConfig
+	cfg := OnexConfig
 
-	chains := CreateChainsWithCustomConfig(t, 1, 0, cfg)
+	chains := CreateConsumerChainsWithCustomConfig(t, 1, 0, cfg)
 	ic, ctx, _, _ := BuildInitialChain(t, chains)
-	onomy := chains[0].(*cosmos.CosmosChain)
+	onex := chains[1].(*cosmos.CosmosChain)
 
-	testutil.WaitForBlocks(ctx, 15, onomy)
+	testutil.WaitForBlocks(ctx, 15, onex)
 
 	// Cleanup test
 	t.Cleanup(func() {

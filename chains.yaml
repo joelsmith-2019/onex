@@ -2,6 +2,14 @@
 # see: https://github.com/strangelove-ventures/heighliner
 
 - name: onomy
+  github-organization: onomyprotocol
+  github-repo: onomy
+  dockerfile: cosmos
+  build-target: make install
+  binaries:
+    - /go/bin/onomyd
+
+- name: onex
   dockerfile: cosmos
   build-target: make install
   binaries:

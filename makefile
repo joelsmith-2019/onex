@@ -109,7 +109,8 @@ local-image:
 ifeq (,$(shell which heighliner))
 	echo 'heighliner' binary not found. Consider running `make get-heighliner`
 else
-	heighliner build -c onomy --local -f ./chains.yaml
+	heighliner build -c onomy --git-ref v1.1.4 -f ./chains.yaml
+	heighliner build -c onex --local -f ./chains.yaml
 endif
 
 .PHONY: get-heighliner local-image

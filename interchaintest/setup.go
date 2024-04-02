@@ -16,52 +16,87 @@ import (
 )
 
 var (
+	ProviderName    = "onomy"
+	ProviderVersion = "v1.1.4"
+	ConsumerName    = "onex"
+	ConsumerVersion = "local"
+
+	Denom        = "unom"
+	Bech32Prefix = "onomy"
+
 	VotingPeriod     = "15s"
 	MaxDepositPeriod = "10s"
-	Denom            = "unom"
 
 	OnomyImage = ibc.DockerImage{
-		Repository: "onomy",
-		Version:    "local",
+		Repository: ProviderName,
+		Version:    ProviderVersion,
 		UidGid:     "1025:1025",
 	}
 
-	defaultGenesisKV = []cosmos.GenesisKV{
-		// {
-		// 	Key:   "app_state.gov.params.voting_period",
-		// 	Value: VotingPeriod,
-		// },
-		// {
-		// 	Key:   "app_state.gov.params.max_deposit_period",
-		// 	Value: MaxDepositPeriod,
-		// },
-		// {
-		// 	Key:   "app_state.gov.params.min_deposit.0.denom",
-		// 	Value: Denom,
-		// },
+	OnomyConfig = ibc.ChainConfig{
+		Type:           "cosmos",
+		Name:           ProviderName,
+		ChainID:        "onomy-1",
+		Images:         []ibc.DockerImage{OnomyImage},
+		Bin:            "onomyd",
+		Bech32Prefix:   Bech32Prefix,
+		Denom:          Denom,
+		CoinType:       "118",
+		GasPrices:      fmt.Sprintf("0%s", Denom),
+		GasAdjustment:  1.0,
+		TrustingPeriod: "168h",
+		NoHostMount:    false,
+		EncodingConfig: OnomyEncoding(),
 	}
 
-	OnomyConfig = ibc.ChainConfig{
+	OnexImage = ibc.DockerImage{
+		Repository: ConsumerName,
+		Version:    ConsumerVersion,
+		UidGid:     "1025:1025",
+	}
+
+	// defaultGenesisKV = []cosmos.GenesisKV{
+	// {
+	// 	Key:   "app_state.gov.params.voting_period",
+	// 	Value: VotingPeriod,
+	// },
+	// {
+	// 	Key:   "app_state.gov.params.max_deposit_period",
+	// 	Value: MaxDepositPeriod,
+	// },
+	// {
+	// 	Key:   "app_state.gov.params.min_deposit.0.denom",
+	// 	Value: Denom,
+	// },
+	// }
+
+	OnexConfig = ibc.ChainConfig{
 		Type:                "cosmos",
-		Name:                "onomy",
+		Name:                ConsumerName,
 		ChainID:             "local-1",
-		Images:              []ibc.DockerImage{OnomyImage},
+		Images:              []ibc.DockerImage{OnexImage},
 		Bin:                 "onexd",
-		Bech32Prefix:        "onomy",
+		Bech32Prefix:        Bech32Prefix,
 		Denom:               Denom,
 		CoinType:            "118",
 		GasPrices:           fmt.Sprintf("0%s", Denom),
 		GasAdjustment:       1.0,
-		TrustingPeriod:      "168h", //TODO: DETERMINE THE TRUSTING PERIOD
+		TrustingPeriod:      "168h",
 		NoHostMount:         false,
 		ConfigFileOverrides: nil,
-		EncodingConfig:      OnomyEncoding(),
-		ModifyGenesis:       cosmos.ModifyGenesis(defaultGenesisKV),
+		EncodingConfig:      OnexEncoding(),
+		ModifyGenesis:       nil, //cosmos.ModifyGenesis(defaultGenesisKV),
 	}
 )
 
-// onomyEncoding returns the encoding config for the onomy chain
+// OnomyEncoding returns the encoding config for the onomy chain
 func OnomyEncoding() *testutil.TestEncodingConfig {
+	cfg := cosmos.DefaultEncoding()
+	return &cfg
+}
+
+// OnexEncoding returns the encoding config for the onex chain
+func OnexEncoding() *testutil.TestEncodingConfig {
 	cfg := cosmos.DefaultEncoding()
 
 	// TODO: ADD CHAIN-SPECIFIC ENCODING HERE
@@ -69,13 +104,25 @@ func OnomyEncoding() *testutil.TestEncodingConfig {
 	return &cfg
 }
 
-// CreateChainsWithCustomConfig creates chain(s) with custom configuration
-func CreateChainsWithCustomConfig(t *testing.T, numVals, numFull int, config ibc.ChainConfig) []ibc.Chain {
+// CreateConsumerChainsWithCustomConfig creates chain(s) with custom configuration. It will always
+// set the first chain to the onomy provider chain and all other chains to the onex consumer chain.
+func CreateConsumerChainsWithCustomConfig(t *testing.T, numVals, numFull int, config ibc.ChainConfig) []ibc.Chain {
+
+	providerVals, providerFull := 1, 0
+
 	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
 		{
-			Name:          "onomy",
-			ChainName:     "onomy",
-			Version:       config.Images[0].Version,
+			Name:          ProviderName,
+			ChainName:     ProviderName,
+			Version:       ProviderVersion,
+			ChainConfig:   OnomyConfig,
+			NumValidators: &providerVals,
+			NumFullNodes:  &providerFull,
+		},
+		{
+			Name:          ConsumerName,
+			ChainName:     ConsumerName,
+			Version:       ConsumerVersion,
 			ChainConfig:   config,
 			NumValidators: &numVals,
 			NumFullNodes:  &numFull,
@@ -89,26 +136,48 @@ func CreateChainsWithCustomConfig(t *testing.T, numVals, numFull int, config ibc
 	return chains
 }
 
-// BuildInitialChain creates a new interchain object and builds the chains
+// BuildInitialChain creates a new interchain object and builds the chains. chains[0] will always be the provider chain.
 func BuildInitialChain(t *testing.T, chains []ibc.Chain) (*interchaintest.Interchain, context.Context, *client.Client, string) {
 	// Create a new Interchain object which describes the chains, relayers, and IBC connections we want to use
 	ic := interchaintest.NewInterchain()
 
-	for _, chain := range chains {
-		ic = ic.AddChain(chain)
+	// Relayer Factory
+	client, network := interchaintest.DockerSetup(t)
+
+	r := interchaintest.NewBuiltinRelayerFactory(
+		ibc.CosmosRly,
+		zaptest.NewLogger(t),
+	).Build(t, client, network)
+
+	ic.AddRelayer(r, "relayer")
+
+	const ibcPath = "ics-path"
+
+	// Provider is always the first chain
+	provider := chains[0]
+	ic.AddChain(provider)
+
+	for i := 1; i < len(chains); i++ {
+		consumer := chains[i]
+		ic.AddChain(consumer).
+			AddProviderConsumerLink(interchaintest.ProviderConsumerLink{
+				Provider: provider,
+				Consumer: consumer,
+				Relayer:  r,
+				Path:     ibcPath,
+			})
 	}
 
 	rep := testreporter.NewNopReporter()
 	eRep := rep.RelayerExecReporter(t)
 
 	ctx := context.Background()
-	client, network := interchaintest.DockerSetup(t)
 
 	err := ic.Build(ctx, eRep, interchaintest.InterchainBuildOptions{
 		TestName:         t.Name(),
 		Client:           client,
 		NetworkID:        network,
-		SkipPathCreation: true,
+		SkipPathCreation: false,
 	})
 	require.NoError(t, err)
 
