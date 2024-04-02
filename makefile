@@ -76,7 +76,24 @@ lint:
 	@go mod verify
 
 ###############################################################################
-###                           Protobuf                                    ###
+###                              Heighliner                                 ###
+###############################################################################
+
+get-heighliner:
+	git clone https://github.com/strangelove-ventures/heighliner.git
+	cd heighliner && go install
+
+local-image:
+ifeq (,$(shell which heighliner))
+	echo 'heighliner' binary not found. Consider running `make get-heighliner`
+else
+	heighliner build -c onomy --local -f ./chains.yaml
+endif
+
+.PHONY: get-heighliner local-image
+
+###############################################################################
+###                              Protobuf                                   ###
 ###############################################################################
 
 proto-gen:
