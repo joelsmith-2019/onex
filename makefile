@@ -10,7 +10,14 @@ ifeq (,$(VERSION))
   endif
 endif
 
+CHAIN_NAME = onex
+DAEMON_NAME = onexd
 
+LEDGER_ENABLED ?= false
+TM_VERSION := $(shell go list -m github.com/tendermint/tendermint | sed 's:.* ::') # grab everything after the space in "github.com/tendermint/tendermint v0.34.7"
+BUILDDIR ?= $(CURDIR)/build
+
+export GO111MODULE = on
 
 build_tags = netgo
 ifeq ($(LEDGER_ENABLED),true)
@@ -24,7 +31,7 @@ ifeq ($(LEDGER_ENABLED),true)
   else
     UNAME_S = $(shell uname -s)
     ifeq ($(UNAME_S),OpenBSD)
-      $(warning OpenBSD detected, disabling ledger support (https://github.com/onomyprotocol/cosmos-sdk/issues/1988))
+      $(warning OpenBSD detected, disabling ledger support (https://github.com/cosmos/cosmos-sdk/issues/1988))
     else
       GCC = $(shell command -v gcc 2> /dev/null)
       ifeq ($(GCC),)
@@ -47,14 +54,21 @@ whitespace += $(whitespace)
 comma := ,
 build_tags_comma_sep := $(subst $(whitespace),$(comma),$(build_tags))
 
-ldflags = 	-X github.com/cosmos/cosmos-sdk/version.Name=onex \
-			-X github.com/cosmos/cosmos-sdk/version.AppName=onexd \
-			-X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
-			-X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
-			-X "github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma_sep)" \
-			
+ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=$(CHAIN_NAME) \
+		  -X github.com/cosmos/cosmos-sdk/version.AppName=$(DAEMON_NAME) \
+		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
+		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
+		  -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma_sep) \
+		  -X github.com/tendermint/tendermint/version.TMCoreSemVer=$(TM_VERSION)
 
-BUILD_FLAGS := -ldflags '$(ldflags)' -gcflags="all=-N -l"
+ldflags += $(LDFLAGS)
+ldflags := $(strip $(ldflags))
+
+BUILD_FLAGS := -tags "$(build_tags)" -ldflags '$(ldflags)' -gcflags="all=-N -l"
+
+###############################################################################
+###                              INSTALL                                    ###
+###############################################################################
 
 all: install
 
@@ -66,8 +80,16 @@ go.sum: go.mod
 		@echo "--> Ensure dependencies have not been modified"
 		GO111MODULE=on go mod verify
 
+###############################################################################
+###                                TEST                                     ###
+###############################################################################
+
 test:
 	@go test -mod=readonly $(PACKAGES)
+
+###############################################################################
+###                                LINT                                     ###
+###############################################################################
 
 # look into .golangci.yml for enabling / disabling linters
 lint:
