@@ -1,7 +1,6 @@
 package interchaintest
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
@@ -15,11 +14,7 @@ func TestUpgrade(t *testing.T) {
 	cfg := OnomyConfig
 
 	chains := CreateChainsWithCustomConfig(t, 1, 0, cfg)
-
-	fmt.Println("We made it here!")
-
 	ic, ctx, _, _ := BuildInitialChain(t, chains)
-
 	onomy := chains[0].(*cosmos.CosmosChain)
 
 	testutil.WaitForBlocks(ctx, 15, onomy)

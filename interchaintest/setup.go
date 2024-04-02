@@ -27,32 +27,32 @@ var (
 	}
 
 	defaultGenesisKV = []cosmos.GenesisKV{
-		{
-			Key:   "app_state.gov.params.voting_period",
-			Value: VotingPeriod,
-		},
-		{
-			Key:   "app_state.gov.params.max_deposit_period",
-			Value: MaxDepositPeriod,
-		},
-		{
-			Key:   "app_state.gov.params.min_deposit.0.denom",
-			Value: Denom,
-		},
+		// {
+		// 	Key:   "app_state.gov.params.voting_period",
+		// 	Value: VotingPeriod,
+		// },
+		// {
+		// 	Key:   "app_state.gov.params.max_deposit_period",
+		// 	Value: MaxDepositPeriod,
+		// },
+		// {
+		// 	Key:   "app_state.gov.params.min_deposit.0.denom",
+		// 	Value: Denom,
+		// },
 	}
 
 	OnomyConfig = ibc.ChainConfig{
 		Type:                "cosmos",
 		Name:                "onomy",
-		ChainID:             "onomy-ic-1",
+		ChainID:             "local-1",
 		Images:              []ibc.DockerImage{OnomyImage},
 		Bin:                 "onexd",
 		Bech32Prefix:        "onomy",
 		Denom:               Denom,
 		CoinType:            "118",
 		GasPrices:           fmt.Sprintf("0%s", Denom),
-		GasAdjustment:       2.0,
-		TrustingPeriod:      "112h", //TODO: DETERMINE THE TRUSTING PERIOD
+		GasAdjustment:       1.0,
+		TrustingPeriod:      "168h", //TODO: DETERMINE THE TRUSTING PERIOD
 		NoHostMount:         false,
 		ConfigFileOverrides: nil,
 		EncodingConfig:      OnomyEncoding(),
