@@ -18,7 +18,14 @@ func TestRandom(t *testing.T) {
 	// Setup chains, build interchain
 	chains := CreateChainsWithCustomConsumerConfig(t, 1, 0, OnexConfig)
 	onomy, onex := chains[0].(*cosmos.CosmosChain), chains[1].(*cosmos.CosmosChain)
-	ic, ctx, _, _ := BuildInitialChain(t, onomy, onex)
+	ic, ctx, relayer, eRep, _, _ := BuildInitialChain(t, onomy, onex)
+
+	testutil.WaitForBlocks(ctx, 5, onomy, onex)
+
+	// Start relayer
+	t.Log("Starting relayer............................................")
+	require.NoError(t, relayer.StartRelayer(ctx, eRep, "ics-path"))
+	testutil.WaitForBlocks(ctx, 5, onomy, onex)
 
 	funds := int64(10_000_000_000)
 	onexUser := interchaintest.GetAndFundTestUsers(t, ctx, t.Name(), funds, onex)[0]
@@ -44,7 +51,7 @@ func TestUpgrade(t *testing.T) {
 	// Setup chains, build interchain
 	chains := CreateChainsWithCustomConsumerConfig(t, 1, 0, OnexConfig)
 	onomy, onex := chains[0].(*cosmos.CosmosChain), chains[1].(*cosmos.CosmosChain)
-	ic, ctx, _, _ := BuildInitialChain(t, onomy, onex)
+	ic, ctx, _, _, _, _ := BuildInitialChain(t, onomy, onex)
 
 	// Ensure chains are properly producing blocks
 	testutil.WaitForBlocks(ctx, 5, onex)
