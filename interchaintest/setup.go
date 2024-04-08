@@ -14,6 +14,8 @@ import (
 	"github.com/strangelove-ventures/interchaintest/v4/testreporter"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
+
+	daotypes "github.com/onomyprotocol/onomy/x/dao/types"
 )
 
 var (
@@ -136,6 +138,10 @@ var (
 // OnomyEncoding returns the encoding config for the onomy chain
 func OnomyEncoding() *params.EncodingConfig {
 	cfg := cosmos.DefaultEncoding()
+
+	// Add custom encoding overrides here
+	daotypes.RegisterInterfaces(cfg.InterfaceRegistry)
+
 	return &cfg
 }
 
@@ -183,7 +189,7 @@ func CreateChainsWithCustomConsumerConfig(t *testing.T, numVals, numFull int, co
 }
 
 // BuildInitialChain creates a new interchain object and builds the chains.
-func BuildInitialChain(t *testing.T, providerChain ibc.Chain, consumerChain ibc.Chain) (*interchaintest.Interchain, context.Context, *client.Client, string) {
+func BuildInitialChain(t *testing.T, providerChain ibc.Chain, consumerChain ibc.Chain) (*interchaintest.Interchain, context.Context, ibc.Relayer, *testreporter.RelayerExecReporter, *client.Client, string) {
 	// Relayer Factory
 	client, network := interchaintest.DockerSetup(t)
 
@@ -218,5 +224,5 @@ func BuildInitialChain(t *testing.T, providerChain ibc.Chain, consumerChain ibc.
 	})
 	require.NoError(t, err)
 
-	return ic, ctx, client, network
+	return ic, ctx, r, eRep, client, network
 }
